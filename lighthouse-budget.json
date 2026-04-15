@@ -1,0 +1,13 @@
+[
+  {
+    "path": "/",
+    "assertions": {
+      "minScore": {
+        "performance": 0.75,
+        "accessibility": 0.85,
+        "best-practices": 0.85,
+        "seo": 0.8
+      }
+    }
+  }
+]
