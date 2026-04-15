@@ -20,6 +20,8 @@ jobs:
   qa:
     name: QA — Lint & Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -39,9 +41,13 @@ jobs:
 
       - name: Check coverage threshold (90%)
         run: |
-          SUMMARY=$(cat coverage/coverage-summary.json)
-          LINES=$(echo "$SUMMARY" | node -e "const d=require('/dev/stdin'); process.exit(d.total.lines.pct < 90 ? 1 : 0)")
-          echo "Coverage check passed"
+          node -e "
+            const fs = require('fs');
+            const d = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const pct = d.total.lines.pct;
+            console.log('Line coverage:', pct + '%');
+            if (pct < 90) { console.error('Coverage below 90%'); process.exit(1); }
+          "
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -94,6 +100,8 @@ jobs:
   integration:
     name: Integration Tests (Firebase Emulator)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -130,6 +138,8 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     needs: [qa, security]
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -171,6 +181,9 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/develop'
     environment: dev
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -202,6 +215,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: deploy-dev
     if: github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -245,6 +260,9 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     environment: prod
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 

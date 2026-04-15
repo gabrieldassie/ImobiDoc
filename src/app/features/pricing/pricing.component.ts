@@ -1,8 +1,8 @@
 import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { FirebaseAuthService } from '../../data/firebase';
-import { StripePaymentService } from '../../data/firebase';
+import { firstValueFrom } from 'rxjs';
+import { FirebaseAuthService, StripePaymentService } from '../../data/firebase';
 import { environment } from '../../../environments/environment';
 
 interface PricingPlan {
@@ -120,9 +120,7 @@ export class PricingComponent {
     this.isLoading.set(true);
     this.errorMessage.set('');
     try {
-      const user = await new Promise<{ uid: string } | null>((resolve) =>
-        this.auth.currentUser$.subscribe({ next: (u) => resolve(u) })
-      );
+      const user = await firstValueFrom(this.auth.currentUser$);
       if (!user) throw new Error('Usuário não autenticado.');
       const session = await this.payment.createCheckoutSession(
         environment.stripe.proPriceId,
