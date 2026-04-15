@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper functions ─────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isPro() {
+      return isAuthenticated() && request.auth.token.tier == 'pro';
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp;
+    }
+
+    // ─── Users ────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasAll(['uid', 'email', 'tier', 'createdAt', 'updatedAt'])
+        && request.resource.data.tier in ['free', 'pro']
+        && request.resource.data.uid == userId;
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.tier in ['free', 'pro'];
+      allow delete: if false; // No soft deletes for now
+
+      // ─── Properties ───────────────────────────────────────────────────
+      match /properties/{propertyId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.ownerId == userId
+          && request.resource.data.keys().hasAll(['name', 'address', 'city', 'type', 'ownerId', 'createdAt', 'updatedAt']);
+        allow update: if isOwner(userId)
+          && resource.data.ownerId == userId
+          && request.resource.data.ownerId == userId;
+        allow delete: if isOwner(userId);
+
+        // ─── Maintenance Logs ──────────────────────────────────────────
+        match /maintenanceLogs/{logId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId)
+            && request.resource.data.ownerId == userId
+            && request.resource.data.propertyId == propertyId
+            && request.resource.data.keys().hasAll(['title', 'category', 'status', 'priority', 'ownerId', 'propertyId', 'createdAt', 'updatedAt'])
+            && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled']
+            && request.resource.data.priority in ['low', 'medium', 'high', 'critical'];
+          allow update: if isOwner(userId)
+            && resource.data.ownerId == userId
+            && request.resource.data.ownerId == userId;
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      // ─── Top-level maintenanceLogs (for cross-property queries) ───────
+      match /maintenanceLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.ownerId == userId;
+        allow update: if isOwner(userId) && resource.data.ownerId == userId;
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
